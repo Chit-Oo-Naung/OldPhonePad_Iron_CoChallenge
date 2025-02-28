@@ -1,48 +1,68 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace OldPhonePad_Iron_CoChallenge.Class
 {
     public class PhoneKeypad
     {
+        // Phone keypad mapping
+        private static Dictionary<char, string> KeypadMappings = new Dictionary<char, string>
+        {
+            {'0', " "},
+            {'1', "&'("},
+            {'2', "ABC"},
+            {'3', "DEF"},
+            {'4', "GHI"},
+            {'5', "JKL"},
+            {'6', "MNO"},
+            {'7', "PQRS"},
+            {'8', "TUV"},
+            {'9', "WXYZ"},
+            {'*', ""}, 
+            {'#', ""}, 
+        };
 
         /// param => The input string with # marking the end.
         /// returns => The resulting text output after processing the keypad presses
         public static string OldPhonePad(string input)
         {
-            // Early validation
-            if (string.IsNullOrEmpty(input) || !input.EndsWith("#"))
+            ValidateInput(input);
+
+            string trimmedInput = input.TrimEnd('#');
+
+            return ProcessInput(trimmedInput);
+        }
+
+        /// Validates that the input is properly formatted
+        private static void ValidateInput(string input)
+        {
+            if (string.IsNullOrEmpty(input))
             {
-                throw new ArgumentException("Input must not be empty and must end with #", nameof(input));
+                throw new ArgumentException("Input must not be empty", nameof(input));
             }
 
-            // Remove the terminating # character
-            input = input.TrimEnd('#');
-
-            // Phone keypad mapping
-            var keypadMapping = new[]
+            if (!input.Contains("#"))
             {
-            " ",
-            "&'(",
-            "ABC",
-            "DEF",
-            "GHI",
-            "JKL",
-            "MNO",
-            "PQRS",
-            "TUV",
-            "WXYZ"
-        };
+                throw new ArgumentException("Input must contain a terminating # character", nameof(input));
+            }
+        }
 
+        /// Processes the input string and converts it to the old phone keypad output
+        private static string ProcessInput(string input)
+        {
             StringBuilder result = new StringBuilder();
             string[] segments = input.Split(' ');
 
             foreach (var segment in segments)
             {
-                ProcessSegment(segment, result, keypadMapping);
+                if (string.IsNullOrEmpty(segment))
+                {
+                    result.Append(' ');
+                    continue;
+                }
+
+                ProcessSegment(segment, result);
             }
 
             return result.ToString();
@@ -50,47 +70,44 @@ namespace OldPhonePad_Iron_CoChallenge.Class
 
         /// Processes a segment (portion of input between spaces) and appends the resulting characters to the output.        
         /// result =>The StringBuilder to which the processed characters are appended
-        /// keypadMapping =>The keypad mapping array
-        private static void ProcessSegment(string segment, StringBuilder result, string[] keypadMapping)
+        private static void ProcessSegment(string segment, StringBuilder result)
         {
-            if (string.IsNullOrEmpty(segment))
+            int i = 0;
+            while (i < segment.Length)
             {
-                return;
+                char currentDigit = segment[i];
+                int count = CountConsecutiveDigits(segment, i, currentDigit);
+
+                ProcessDigitGroup(currentDigit, count, result);
+
+                i += count;
             }
+        }
 
-            char currentDigit = segment[0];
-            int consecutiveCount = 1;
-
-            for (int i = 1; i <= segment.Length; i++)
+        /// summary => Counts consecutive occurrences of a digit in a segment
+        /// segment => The segment to check
+        /// startIndex => The starting index
+        /// digit => The digit to count
+        /// returns => The count of consecutive occurrences
+        private static int CountConsecutiveDigits(string segment, int startIndex, char digit)
+        {
+            int count = 0;
+            for (int i = startIndex; i < segment.Length && segment[i] == digit; i++)
             {
-                // Process the current group when we reach the end or encounter a different digit
-                if (i == segment.Length || segment[i] != currentDigit)
-                {
-                    ProcessDigitGroup(currentDigit, consecutiveCount, result, keypadMapping);
-
-                    if (i < segment.Length)
-                    {
-                        currentDigit = segment[i];
-                        consecutiveCount = 1;
-                    }
-                }
-                else
-                {
-                    consecutiveCount++;
-                }
+                count++;
             }
+            return count;
         }
 
         /// summary => Processes a group of consecutive identical digits and updates the result accordingly
         /// digit => The digit being processed
         /// count => The number of consecutive occurrences of the digit
         /// result => The StringBuilder to which the processed characters are appended
-        /// keypadMapping => The keypad mapping array
-        private static void ProcessDigitGroup(char digit, int count, StringBuilder result, string[] keypadMapping)
+        private static void ProcessDigitGroup(char digit, int count, StringBuilder result)
         {
+            // Handle backspace (*) - remove last character for each *
             if (digit == '*')
             {
-                // Backspace - remove last character for each '*'
                 for (int i = 0; i < count; i++)
                 {
                     if (result.Length > 0)
@@ -101,19 +118,11 @@ namespace OldPhonePad_Iron_CoChallenge.Class
                 return;
             }
 
-            if (char.IsDigit(digit))
+            if (KeypadMappings.TryGetValue(digit, out string letters) && !string.IsNullOrEmpty(letters))
             {
-                int digitValue = digit - '0';
-                if (digitValue >= 0 && digitValue <= 9)
-                {
-                    string letters = keypadMapping[digitValue];
-                    if (letters.Length > 0)
-                    {
-                        // Calculate which letter to add based on the number of consecutive presses
-                        int letterIndex = (count - 1) % letters.Length;
-                        result.Append(letters[letterIndex]);
-                    }
-                }
+                // Calculate which letter to add based on the number of consecutive presses
+                int letterIndex = (count - 1) % letters.Length;
+                result.Append(letters[letterIndex]);
             }
         }
     }
